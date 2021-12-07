@@ -70,7 +70,7 @@ func (cs *constraintSystem) toSparseR1CS(curveID ecc.ID) (CompiledConstraintSyst
 				DebugInfo:           make([]compiled.LogEntry, len(cs.debugInfo)),
 				Logs:                make([]compiled.LogEntry, len(cs.logs)),
 				MDebug:              make(map[int]int),
-				MHints:              make(map[int]compiled.Hint, len(cs.mHints)),
+				MHints:              make(map[int]*compiled.Hint),
 				Counters:            make([]compiled.Counter, len(cs.counters)),
 			},
 			Constraints: make([]compiled.SparseR1C, 0, len(cs.constraints)),
@@ -193,8 +193,11 @@ func (cs *constraintSystem) toSparseR1CS(curveID ecc.ID) (CompiledConstraintSyst
 	}
 
 	// we need to offset the ids in the hints
-	for vID, hint := range cs.mHints {
-		k := shiftVID(vID, compiled.Internal)
+	for _, hint := range cs.mHints {
+		ws := make([]int, len(hint.Wires))
+		for i, vID := range hint.Wires {
+			ws[i] = shiftVID(vID, compiled.Internal)
+		}
 		inputs := make([]compiled.Variable, len(hint.Inputs))
 		copy(inputs, hint.Inputs)
 		for j := 0; j < len(inputs); j++ {
@@ -202,7 +205,10 @@ func (cs *constraintSystem) toSparseR1CS(curveID ecc.ID) (CompiledConstraintSyst
 				offsetTermID(&inputs[j].LinExp[k])
 			}
 		}
-		res.ccs.MHints[k] = compiled.Hint{ID: hint.ID, Inputs: inputs}
+		ch := &compiled.Hint{ID: hint.ID, Inputs: inputs, Wires: ws}
+		for _, vID := range ws {
+			res.ccs.MHints[vID] = ch
+		}
 	}
 
 	// update number of internal variables with new wires created

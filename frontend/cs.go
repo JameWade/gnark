@@ -54,8 +54,8 @@ type constraintSystem struct {
 	coeffsIDsInt64 map[int64]int  // map to check existence of a coefficient (key = int64 value)
 
 	// Hints
-	mHints            map[int]compiled.Hint // solver hints
-	mHintsConstrained map[int]bool          // marks hints compiled.Variables constrained status
+	mHints            []*compiled.Hint // solver hints
+	mHintsConstrained map[int]bool     // marks hints variables constrained status
 
 	logs      []compiled.LogEntry // list of logs to be printed when solving a circuit. The logs are called with the method Println
 	debugInfo []compiled.LogEntry // list of logs storing information about R1C
@@ -101,7 +101,7 @@ func newConstraintSystem(curveID ecc.ID, backendID backend.ID, initialCapacity .
 		coeffsIDsInt64:    make(map[int64]int, 4),
 		constraints:       make([]compiled.R1C, 0, capacity),
 		mDebug:            make(map[int]int),
-		mHints:            make(map[int]compiled.Hint),
+		mHints:            make([]*compiled.Hint, 0),
 		mHintsConstrained: make(map[int]bool),
 		counters:          make([]Counter, 0),
 	}
@@ -144,13 +144,6 @@ func newConstraintSystem(curveID ecc.ID, backendID backend.ID, initialCapacity .
 // No new constraints are added to the newly created wire and must be added
 // manually in the circuit. Failing to do so leads to solver failure.
 func (cs *constraintSystem) NewHint(f hint.Function, inputs ...interface{}) Variable {
-	// create resulting wire
-	r := cs.newInternalVariable()
-	_, vID, _ := r.LinExp[0].Unpack()
-
-	// mark hint as unconstrained, for now
-	cs.mHintsConstrained[vID] = false
-
 	// now we need to store the linear expressions of the expected input
 	// that will be resolved in the solver
 	hintInputs := make([]compiled.Variable, len(inputs))
@@ -161,8 +154,22 @@ func (cs *constraintSystem) NewHint(f hint.Function, inputs ...interface{}) Vari
 		hintInputs[i] = t.Clone() // TODO @gbotrel check that we need to clone here ?
 	}
 
-	// add the hint to the constraint system
-	cs.mHints[vID] = compiled.Hint{ID: hint.UUID(f), Inputs: hintInputs}
+	// prepare wires
+	varIDs := make([]int, f.TotalOutputs(len(inputs)))
+	res := make([]Variable, len(varIDs))
+	for i := range varIDs {
+		r := cs.newInternalVariable()
+		_, vID, _ := r.LinExp[0].Unpack()
+		varIDs[i] = vID
+		// mark hint as unconstrained, for now
+		// TODO(ivokub): this field is only used in a single method. remove from
+		// global var?
+		cs.mHintsConstrained[vID] = false
+		res[i] = r
+	}
+
+	ch := &compiled.Hint{ID: f.UUID(), Inputs: hintInputs, Wires: varIDs}
+	cs.mHints = append(cs.mHints, ch)
 
 	return r
 }
