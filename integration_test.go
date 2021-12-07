@@ -36,17 +36,22 @@ func TestIntegrationAPI(t *testing.T) {
 	}
 	sort.Strings(keys)
 
-	for _, k := range keys {
+	for i := range keys {
+		name := keys[i]
+		tData := circuits.Circuits[name]
+		assert.Run(func(assert *test.Assert) {
+			for i := range tData.ValidWitnesses {
+				assert.Run(func(assert *test.Assert) {
+					assert.ProverSucceeded(tData.Circuit, tData.ValidWitnesses[i], test.WithProverOpts(backend.WithHints(tData.HintFunctions...)))
+				}, fmt.Sprintf("valid-%d", i))
+			}
 
-		tData := circuits.Circuits[k]
-		t.Log(k)
-		for _, w := range tData.ValidWitnesses {
-			assert.ProverSucceeded(tData.Circuit, w, test.WithProverOpts(backend.WithHints(tData.HintFunctions...)))
-		}
-
-		for _, w := range tData.InvalidWitnesses {
-			assert.ProverFailed(tData.Circuit, w, test.WithProverOpts(backend.WithHints(tData.HintFunctions...)))
-		}
+			for i := range tData.InvalidWitnesses {
+				assert.Run(func(assert *test.Assert) {
+					assert.ProverFailed(tData.Circuit, tData.InvalidWitnesses[i], test.WithProverOpts(backend.WithHints(tData.HintFunctions...)))
+				}, fmt.Sprintf("invalid-%d", i))
+			}
+		}, name)
 	}
 
 }
