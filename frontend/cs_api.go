@@ -344,7 +344,12 @@ func (cs *constraintSystem) IsZero(i1 interface{}) Variable {
 	// _ = inverse(m + a) 	// constrain m to be 1 if a == 0
 
 	// m is computed by the solver such that m = 1 - a^(modulus - 1)
-	m := cs.NewHint(hint.IsZero, a)
+	res, err := cs.NewHint(hint.IsZero, a)
+	if err != nil {
+		// the function errs only if the number of inputs is invalid.
+		panic(err)
+	}
+	m := res[0]
 	cs.addConstraint(newR1C(a, m, cs.constant(0)), debug)
 
 	cs.AssertIsBoolean(m)
@@ -402,7 +407,11 @@ func (cs *constraintSystem) toBinary(a compiled.Variable, nbBits int, unsafe boo
 	var c big.Int
 	c.SetUint64(1)
 	for i := 0; i < nbBits; i++ {
-		b[i] = cs.NewHint(hint.IthBit, a, i)
+		res, err := cs.NewHint(hint.IthBit, a, i)
+		if err != nil {
+			panic(err)
+		}
+		b[i] = res[0]
 		sb[i] = cs.Mul(b[i], c)
 		c.Lsh(&c, 1)
 		if !unsafe {

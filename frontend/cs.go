@@ -18,6 +18,7 @@ package frontend
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"sort"
@@ -143,7 +144,13 @@ func newConstraintSystem(curveID ecc.ID, backendID backend.ID, initialCapacity .
 //
 // No new constraints are added to the newly created wire and must be added
 // manually in the circuit. Failing to do so leads to solver failure.
-func (cs *constraintSystem) NewHint(f hint.AnnotatedFunction, inputs ...interface{}) []Variable {
+func (cs *constraintSystem) NewHint(f hint.AnnotatedFunction, inputs ...interface{}) ([]Variable, error) {
+	if nIn := f.TotalInputs(); nIn >= 0 && nIn != len(inputs) {
+		return nil, fmt.Errorf("expected %d inputs, got %d", nIn, len(inputs))
+	}
+	if f.TotalOutputs(len(inputs)) <= 0 {
+		return nil, fmt.Errorf("hint function must return at least one output")
+	}
 	// now we need to store the linear expressions of the expected input
 	// that will be resolved in the solver
 	hintInputs := make([]compiled.Variable, len(inputs))
@@ -171,7 +178,7 @@ func (cs *constraintSystem) NewHint(f hint.AnnotatedFunction, inputs ...interfac
 	ch := &compiled.Hint{ID: f.UUID(), Inputs: hintInputs, Wires: varIDs}
 	cs.mHints = append(cs.mHints, ch)
 
-	return r
+	return res, nil
 }
 
 // bitLen returns the number of bits needed to represent a fr.Element
