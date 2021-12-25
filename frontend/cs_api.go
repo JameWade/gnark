@@ -236,6 +236,19 @@ func (cs *constraintSystem) DivUnchecked(i1, i2 interface{}) Variable {
 	return cs.mulConstant(v1, cs.Constant(b2))
 }
 
+// mod returns res = i1 mod i2
+func (cs *constraintSystem) mod(i1, i2 interface{}) Variable {
+	vars, _ := cs.toVariables(i1, i2)
+	v1 := vars[0]
+	v2 := vars[1]
+	b1 := v1.constantValue(cs)
+	b2 := v2.constantValue(cs)
+	var dis, b3 *big.Int
+	dis = dis.Div(b1, b2)
+	b3 = b3.Sub(b1, dis.Mul(dis, b2))
+	return cs.Constant(b3)
+}
+
 // Xor compute the XOR between two variables
 func (cs *constraintSystem) Xor(a, b Variable) Variable {
 
