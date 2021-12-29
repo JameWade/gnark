@@ -137,6 +137,14 @@ func (e *engine) Div(i1, i2 interface{}) frontend.Variable {
 	b2.Mul(&b1, &b2).Mod(&b2, e.modulus())
 	return frontend.Value(b2)
 }
+func (e *engine) Div3(i1, i2 interface{}) frontend.Variable {
+	b1, b2 := e.toBigInt(i1), e.toBigInt(i2)
+	if b2.ModInverse(&b2, e.modulus()) == nil {
+		panic("no inverse")
+	}
+	b2.Mul(&b1, &b2).Mod(&b2, e.modulus())
+	return frontend.Value(b2)
+}
 
 func (e *engine) DivUnchecked(i1, i2 interface{}) frontend.Variable {
 	b1, b2 := e.toBigInt(i1), e.toBigInt(i2)
@@ -358,4 +366,14 @@ func (e *engine) mustBeBoolean(b *big.Int) {
 
 func (e *engine) modulus() *big.Int {
 	return e.curveID.Info().Fr.Modulus()
+}
+
+func (e *engine) Mod(i1, i2 interface{}) frontend.Variable {
+
+	////
+	b1, b2 := e.toBigInt(i1), e.toBigInt(i2)
+
+	var b3 *big.Int
+	b3 = b3.Mod(&b1, &b2)
+	return frontend.Value(b3)
 }

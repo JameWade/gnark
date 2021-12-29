@@ -204,6 +204,7 @@ func Prove(r1cs frontend.CompiledConstraintSystem, pk ProvingKey, witness fronte
 		if err := w.FromFullAssignment(witness); err != nil {
 			return nil, err
 		}
+
 		return groth16_bls12377.Prove(_r1cs, pk.(*groth16_bls12377.ProvingKey), w, opt)
 	case *backend_bls12381.R1CS:
 		w := witness_bls12381.Witness{}

@@ -18,6 +18,7 @@ package frontend
 
 import (
 	"fmt"
+	"github.com/consensys/gnark-crypto/ecc"
 	"math/big"
 	"runtime/debug"
 
@@ -194,7 +195,6 @@ func (cs *constraintSystem) Div(i1, i2 interface{}) Variable {
 	}
 	q := cs.curveID.Info().Fr.Modulus()
 	b2.ModInverse(b2, q)
-
 	if v1.isConstant() {
 		b2.Mul(b2, v1.constantValue(cs)).Mod(b2, q)
 		return cs.Constant(b2)
@@ -202,6 +202,98 @@ func (cs *constraintSystem) Div(i1, i2 interface{}) Variable {
 
 	// v1 is not constant
 	return cs.mulConstant(v1, cs.Constant(b2))
+}
+
+//func (cs *constraintSystem) Div2(i1, i2 interface{}) Variable {
+//	vars, _ := cs.toVariables(i1, i2)
+//
+//	v1 := vars[0]
+//	v2 := vars[1]
+//	// pseudocode:
+//	//
+//	// if D = 0 then error(DivisionByZeroException) end
+//	// Q := 0                  -- Initialize quotient and remainder to zero
+//	// R := 0
+//	// for i := n − 1 .. 0 do  -- Where n is number of bits in N
+//	//   R := R << 1           -- Left-shift R by 1 bit
+//	//   R(0) := N(i)          -- Set the least-significant bit of R equal to bit i of the numerator
+//	//   if R ≥ D then
+//	//     R := R − D
+//	//     Q(i) := 1
+//	//   end
+//	// end
+//	//both contant
+//	//v1/v2==N/d
+//	if v1.isConstant() && v2.isConstant() {
+//		b2 := v2.constantValue(cs)
+//		q := cs.curveID.Info().Fr.Modulus()
+//		b2.ModInverse(b2, q)
+//		b2.Mul(b2, v1.constantValue(cs)).Mod(b2, q)
+//		return cs.Constant(b2)
+//	}
+//	// Initialize some constants
+//	var one = cs.Constant(1)
+//	var zero = cs.Constant(0)
+//	// Q := 0
+//	var quotient_bits = make([]Variable, 0)
+//	// R := 0
+//	var remainder = zero
+//	bits := cs.ToBinary(v1, 256)
+//	for _, bit := range bits {
+//		//R:= R << 1
+//		remainder = cs.Add(remainder, remainder)
+//
+//		//R(0) := N(i)
+//		var remainder = bit
+//
+//		// if R ≥ D
+//		var r_larger_or_equal_to_d = cs.Select(remainder, v2, cs.one())
+//		remainder = cs.Select(r_larger_or_equal_to_d)
+//		remainder = cs.Sub(remainder, v2)
+//		//Q(i) := 1
+//		quotient_bits = append(quotient_bits, r_larger_or_equal_to_d)
+//	}
+//
+//}
+//func (cs *constraintSystem) cmp(i1, i2 interface{}) bool {
+//	vars, _ := cs.toVariables(i1, i2)
+//	v1 := vars[0]
+//	v2 := vars[1]
+//	a := cs.ToBinary(v1, 256)
+//	b := cs.ToBinary(v2, 256)
+//	for i := 0; i < len(a); i++ {
+//		var less = cs.And(cs.IsZero(a), b[0])
+//		var not_equal = cs.Xor(a[i], b[i])
+//		var equal = cs.IsZero(not_equal)
+//		var less_or_equal = cs.Or(less, equal)
+//		var result =
+//	}
+//}
+func (cs *constraintSystem) Div3(i1, i2 interface{}) Variable {
+	vars, _ := cs.toVariables(i1, i2)
+	v1 := vars[0]
+	v2 := vars[1]
+
+	b1 := v1.GetWitnessValue(ecc.BN254)
+	b2 := v2.GetWitnessValue(ecc.BN254)
+	var b3 *big.Int
+	var v3 = cs.newInternalVariable()
+	b3 = b2.Div(&b1, &b2)
+	b := FromInterface(b3)
+	v3 = cs.Constant(b)
+	fmt.Println("this is v3:", v3.WitnessValue)
+	cs.addConstraint(newR1C(v3, v2, v1))
+	//debug := cs.addDebugInfo("assertIsEqual", v3, "*", v2, "==", v1)
+	//
+	//int
+	//bBitwidth = v2.bitLength()
+	//r.restrictBitLength(bBitwidth)
+	//q.restrictBitLength(bitwidth - bBitwidth + 1)
+	//generator.addOneAssertion(r.isLessThan(b, bBitwidth))
+	//generator.addEqualityAssertion(q.mul(b).add(r), a)
+
+	return v3
+
 }
 
 func (cs *constraintSystem) DivUnchecked(i1, i2 interface{}) Variable {
@@ -237,16 +329,29 @@ func (cs *constraintSystem) DivUnchecked(i1, i2 interface{}) Variable {
 }
 
 // mod returns res = i1 mod i2
-func (cs *constraintSystem) mod(i1, i2 interface{}) Variable {
+func (cs *constraintSystem) Mod(i1, i2 interface{}) Variable {
 	vars, _ := cs.toVariables(i1, i2)
 	v1 := vars[0]
 	v2 := vars[1]
+
+	if !v2.isConstant() {
+		res := cs.newInternalVariable()
+		debug := cs.addDebugInfo("mod", v1, "%", v2, " == ", res)
+		// note that here we don't ensure that divisor is != 0
+		cs.addConstraint(newR1C(v2, res, v1), debug)
+		return res
+	}
+
 	b1 := v1.constantValue(cs)
 	b2 := v2.constantValue(cs)
-	var dis, b3 *big.Int
-	dis = dis.Div(b1, b2)
-	b3 = b3.Sub(b1, dis.Mul(dis, b2))
-	return cs.Constant(b3)
+	var b3 *big.Int
+	b3 = b3.Mod(b1, b2)
+
+	if v1.isConstant() {
+		return cs.Constant(b3)
+	}
+
+	return cs.mulConstant(v1, cs.Constant(b3))
 }
 
 // Xor compute the XOR between two variables
@@ -488,7 +593,6 @@ func (cs *constraintSystem) Select(i0, i1, i2 interface{}) Variable {
 // a Constant variable does NOT necessary allocate a Variable in the ConstraintSystem
 // it is in the form ONE_WIRE * coeff
 func (cs *constraintSystem) Constant(input interface{}) Variable {
-
 	switch t := input.(type) {
 	case Variable:
 		t.assertIsSet(cs)

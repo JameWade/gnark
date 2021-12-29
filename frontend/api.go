@@ -109,4 +109,6 @@ type API interface {
 	// from the backend point of view, it's equivalent to a user-supplied witness
 	// except, the solver is going to assign it a value, not the caller
 	NewHint(f hint.Function, inputs ...interface{}) Variable
+	Mod(i1, i2 interface{}) Variable
+	Div3(i1, i2 interface{}) Variable
 }

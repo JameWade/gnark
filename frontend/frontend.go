@@ -71,7 +71,7 @@ func Compile(curveID ecc.ID, zkpID backend.ID, circuit Circuit, opts ...func(opt
 			return nil, err
 		}
 	}
-
+	//fmt.Println("this is ccs", cs.GetConstrains())
 	switch zkpID {
 	case backend.GROTH16:
 		ccs, err = cs.toR1CS(curveID)

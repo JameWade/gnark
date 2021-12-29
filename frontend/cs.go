@@ -217,6 +217,10 @@ func (cs *constraintSystem) NbConstraints() int {
 	return len(cs.constraints)
 }
 
+func (cs *constraintSystem) GetConstrains() []compiled.R1C {
+	return cs.constraints
+}
+
 // LinearExpression packs a list of compiled.Term in a compiled.LinearExpression and returns it.
 func (cs *constraintSystem) LinearExpression(terms ...compiled.Term) compiled.LinearExpression {
 	res := make(compiled.LinearExpression, len(terms))

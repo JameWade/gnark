@@ -50,7 +50,6 @@ func NewR1CS(cs compiled.R1CS, coefficients []big.Int) *R1CS {
 	for i := 0; i < len(coefficients); i++ {
 		r.Coefficients[i].SetBigInt(&coefficients[i])
 	}
-
 	return &r
 }
 
