@@ -137,6 +137,11 @@ func (e *engine) Div(i1, i2 interface{}) frontend.Variable {
 	b2.Mul(&b1, &b2).Mod(&b2, e.modulus())
 	return frontend.Value(b2)
 }
+func (e *engine) Div2(i1, i2 interface{}) frontend.Variable {
+	b1, b2 := e.toBigInt(i1), e.toBigInt(i2)
+	q := new(big.Int).Div(&b1, &b2)
+	return frontend.Value(q)
+}
 func (e *engine) Div3(i1, i2 interface{}) frontend.Variable {
 	b1, b2 := e.toBigInt(i1), e.toBigInt(i2)
 	if b2.ModInverse(&b2, e.modulus()) == nil {

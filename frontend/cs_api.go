@@ -171,6 +171,7 @@ func (cs *constraintSystem) Inverse(i1 interface{}) Variable {
 }
 
 // Div returns res = i1 / i2
+//gnark's div
 func (cs *constraintSystem) Div(i1, i2 interface{}) Variable {
 	vars, _ := cs.toVariables(i1, i2)
 
@@ -204,6 +205,7 @@ func (cs *constraintSystem) Div(i1, i2 interface{}) Variable {
 	return cs.mulConstant(v1, cs.Constant(b2))
 }
 
+//Div2 is a bit div//
 //func (cs *constraintSystem) Div2(i1, i2 interface{}) Variable {
 //	vars, _ := cs.toVariables(i1, i2)
 //
@@ -269,33 +271,51 @@ func (cs *constraintSystem) Div(i1, i2 interface{}) Variable {
 //		var result =
 //	}
 //}
+
+//have a mod
 func (cs *constraintSystem) Div3(i1, i2 interface{}) Variable {
 	vars, _ := cs.toVariables(i1, i2)
-	v1 := vars[0]
-	v2 := vars[1]
-
-	b1 := v1.GetWitnessValue(ecc.BN254)
-	b2 := v2.GetWitnessValue(ecc.BN254)
-	var b3 *big.Int
-	var v3 = cs.newInternalVariable()
-	b3 = b2.Div(&b1, &b2)
-	b := FromInterface(b3)
-	v3 = cs.Constant(b)
-	fmt.Println("this is v3:", v3.WitnessValue)
-	cs.addConstraint(newR1C(v3, v2, v1))
-	//debug := cs.addDebugInfo("assertIsEqual", v3, "*", v2, "==", v1)
-	//
-	//int
-	//bBitwidth = v2.bitLength()
-	//r.restrictBitLength(bBitwidth)
-	//q.restrictBitLength(bitwidth - bBitwidth + 1)
-	//generator.addOneAssertion(r.isLessThan(b, bBitwidth))
-	//generator.addEqualityAssertion(q.mul(b).add(r), a)
-
-	return v3
+	a := vars[0]
+	b := vars[1]
+	//a = b * q + r
+	a1 := a.GetWitnessValue(ecc.BN254)
+	b1 := b.GetWitnessValue(ecc.BN254)
+	var q1, r1 *big.Int
+	q1 = new(big.Int).Div(&a1, &b1)
+	r1 = new(big.Int).Mod(&a1, &b1)
+	q := cs.Constant(q1)
+	r := cs.Constant(r1)
+	fmt.Println("this is v3:", q.WitnessValue)
+	cs.AssertIsEqual(cs.Add(cs.Mul(q, b), r), a)
+	return q
 
 }
 
+//no mod div
+func (cs *constraintSystem) Div2(i1, i2 interface{}) Variable {
+	//constraint is not satisfied
+	vars, _ := cs.toVariables(i1, i2)
+	a := vars[0]
+	b := vars[1]
+	//a = b * q
+	a1 := a.GetWitnessValue(ecc.BN254)
+	b1 := b.GetWitnessValue(ecc.BN254)
+	var q1 *big.Int
+	q1 = new(big.Int).Div(&a1, &b1)
+	q := cs.Constant(q1)
+	fmt.Println("this is v3:", q.WitnessValue)
+	cs.addConstraint(newR1C(b, q, a))
+	return q
+
+}
+
+//jsnark
+//int
+//bBitwidth = v2.bitLength()
+//r.restrictBitLength(bBitwidth)
+//q.restrictBitLength(bitwidth - bBitwidth + 1)
+//generator.addOneAssertion(r.isLessThan(b, bBitwidth))
+//generator.addEqualityAssertion(q.mul(b).add(r), a)
 func (cs *constraintSystem) DivUnchecked(i1, i2 interface{}) Variable {
 	vars, _ := cs.toVariables(i1, i2)
 
